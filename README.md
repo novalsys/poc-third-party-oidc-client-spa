@@ -9,6 +9,7 @@ Ask CampusGroups for a `client_id` with:
 | Setting | Value |
 |---|---|
 | Redirect URI | `https://localhost:8444/` |
+| Post-logout redirect URI | `https://localhost:8444/signed-out.html` |
 | Scopes | `openid profile` |
 
 ## Setup
@@ -31,6 +32,7 @@ To use another port, set `PORT` and use it in `config.js` and the registered URI
 | File | Purpose |
 |---|---|
 | `index.html` | Page shell. |
-| `app.js` | Sign-in logic. |
+| `app.js` | Sign-in and sign-out logic. |
+| `signed-out.html` | Landing page after sign-out. |
 | `config.example.js` | Template for `config.js`. |
 | `server.mjs` | HTTPS static server for local development. |

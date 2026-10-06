@@ -47,6 +47,17 @@ async function handleCallback(oidc) {
   const { id_token: idToken } = await res.json();
   const claims = await verifyIdToken(oidc, idToken, pending.nonce);
   sessionStorage.setItem('claims', JSON.stringify(claims));
+  sessionStorage.setItem('idToken', idToken);
+}
+
+function signOut(oidc) {
+  const idToken = sessionStorage.getItem('idToken');
+  sessionStorage.clear();
+  location.assign(`${oidc.end_session_endpoint}?${new URLSearchParams({
+    id_token_hint: idToken,
+    client_id: config.clientId,
+    post_logout_redirect_uri: config.postLogoutRedirectUri,
+  })}`);
 }
 
 async function verifyIdToken(oidc, idToken, nonce) {
@@ -73,8 +84,13 @@ try {
   const oidc = await getJson(`${config.issuer}/.well-known/openid-configuration`);
   if (params.has('code') || params.has('error')) await handleCallback(oidc);
   const claims = JSON.parse(sessionStorage.getItem('claims'));
-  if (claims) app.textContent = `Signed in as ${claims.name}`;
-  else await signIn(oidc);
+  if (!claims) await signIn(oidc);
+  else {
+    app.textContent = `Signed in as ${claims.name}`;
+    const button = document.getElementById('sign-out');
+    button.hidden = false;
+    button.onclick = () => signOut(oidc);
+  }
 } catch (err) {
   app.textContent = `Sign-in failed: ${err.message}`;
 }
