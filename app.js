@@ -45,8 +45,8 @@ async function handleCallback(oidc) {
   });
   if (!res.ok) throw new Error(`token request failed: ${res.status}`);
   const { id_token: idToken } = await res.json();
-  await verifyIdToken(oidc, idToken, pending.nonce);
-  app.textContent = 'ID token verified.';
+  const claims = await verifyIdToken(oidc, idToken, pending.nonce);
+  sessionStorage.setItem('claims', JSON.stringify(claims));
 }
 
 async function verifyIdToken(oidc, idToken, nonce) {
@@ -72,6 +72,8 @@ async function verifyIdToken(oidc, idToken, nonce) {
 try {
   const oidc = await getJson(`${config.issuer}/.well-known/openid-configuration`);
   if (params.has('code') || params.has('error')) await handleCallback(oidc);
+  const claims = JSON.parse(sessionStorage.getItem('claims'));
+  if (claims) app.textContent = `Signed in as ${claims.name}`;
   else await signIn(oidc);
 } catch (err) {
   app.textContent = `Sign-in failed: ${err.message}`;
