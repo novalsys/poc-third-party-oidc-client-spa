@@ -31,5 +31,6 @@ To use another port, set `PORT` and use it in `config.js` and the registered URI
 | File | Purpose |
 |---|---|
 | `index.html` | Page shell. |
+| `app.js` | Sign-in logic. |
 | `config.example.js` | Template for `config.js`. |
 | `server.mjs` | HTTPS static server for local development. |
