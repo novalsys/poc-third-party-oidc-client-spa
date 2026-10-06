@@ -4,6 +4,8 @@ const app = document.getElementById('app');
 const params = new URLSearchParams(location.search);
 
 const b64url = (bytes) => new Uint8Array(bytes).toBase64({ alphabet: 'base64url', omitPadding: true });
+const unb64url = (text) => Uint8Array.fromBase64(text, { alphabet: 'base64url' });
+const decodeJson = (text) => JSON.parse(new TextDecoder().decode(unb64url(text)));
 const random = () => b64url(crypto.getRandomValues(new Uint8Array(32)));
 const getJson = (url) => fetch(url).then((res) => (res.ok ? res.json() : Promise.reject(new Error(`${url}: ${res.status}`))));
 
@@ -43,7 +45,28 @@ async function handleCallback(oidc) {
   });
   if (!res.ok) throw new Error(`token request failed: ${res.status}`);
   const { id_token: idToken } = await res.json();
-  app.textContent = 'Tokens received.';
+  await verifyIdToken(oidc, idToken, pending.nonce);
+  app.textContent = 'ID token verified.';
+}
+
+async function verifyIdToken(oidc, idToken, nonce) {
+  const [header, payload, signature] = idToken.split('.');
+  const { alg, kid } = decodeJson(header);
+  if (alg !== 'RS256') throw new Error(`unexpected alg ${alg}`);
+  const { keys } = await getJson(oidc.jwks_uri);
+  const jwk = keys.find((key) => key.kid === kid);
+  if (!jwk) throw new Error(`unknown key ${kid}`);
+  const algorithm = { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' };
+  const key = await crypto.subtle.importKey('jwk', jwk, algorithm, false, ['verify']);
+  const signed = new TextEncoder().encode(`${header}.${payload}`);
+  if (!(await crypto.subtle.verify(algorithm, key, unb64url(signature), signed))) throw new Error('invalid id token signature');
+
+  const claims = decodeJson(payload);
+  if (claims.iss !== oidc.issuer) throw new Error('id token issuer mismatch');
+  if (claims.aud !== config.clientId) throw new Error('id token audience mismatch');
+  if (claims.nonce !== nonce) throw new Error('id token nonce mismatch');
+  if (!(claims.exp * 1000 > Date.now())) throw new Error('id token expired');
+  return claims;
 }
 
 try {
